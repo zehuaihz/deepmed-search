@@ -28,8 +28,9 @@ RUN apt-get update && \
 RUN python3 -m pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
     python3 -m pip config set global.trusted-host mirrors.aliyun.com
 
-# 安装最新版 MinerU
-RUN python3 -m pip install -U 'mineru[core]' --break-system-packages && \
+# 安装 MinerU（固定 2.x：api_server.py 依赖 mineru.cli.client.do_parse，
+# 且 mineru-models-download 的 -m 参数在 4.x 已移除，请勿升级到 4.x）
+RUN python3 -m pip install -U 'mineru[core]>=2.7,<3' --break-system-packages && \
     python3 -m pip cache purge
 
 # 下载 MinerU 模型（使用 ModelScope 国内源）

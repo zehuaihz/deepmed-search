@@ -30,7 +30,9 @@ RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
     pip config set global.trusted-host mirrors.aliyun.com
 
 # 安装 MinerU（CPU 模式）
-RUN pip install --no-cache-dir -U 'mineru[core]'
+# 固定 2.x：api_server.py 依赖 mineru.cli.client.do_parse，
+# 且 mineru-models-download 的 -m 参数在 4.x 已移除，请勿升级到 4.x
+RUN pip install --no-cache-dir -U 'mineru[core]>=2.7,<3'
 
 # 下载模型配置（使用 ModelScope 国内源）
 RUN mineru-models-download -s modelscope -m all
