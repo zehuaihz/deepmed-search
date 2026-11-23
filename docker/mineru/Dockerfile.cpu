@@ -1,8 +1,8 @@
 # MinerU Docker 镜像（CPU 版本，无需 GPU）
 # 参考：https://opendatalab.github.io/MinerU/zh/quick_start/docker_deployment/
 
-# 使用国内 Docker Hub 镜像
-FROM python:3.10-slim
+# 使用国内 Docker Hub 镜像（daocloud）
+FROM docker.m.daocloud.io/library/python:3.10-slim
 
 WORKDIR /app
 

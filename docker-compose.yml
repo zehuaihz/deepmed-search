@@ -295,9 +295,9 @@ services:
   mineru:
     build:
       context: ./docker/mineru
-      # 使用 Dockerfile（GPU 版本，推荐）或 Dockerfile.cpu（CPU 版本）
-      # dockerfile: Dockerfile.cpu
-      dockerfile: Dockerfile
+      # 使用 Dockerfile（GPU 版本）或 Dockerfile.cpu（CPU 版本，当前服务器无 GPU）
+      dockerfile: Dockerfile.cpu
+      # dockerfile: Dockerfile
     container_name: deepmed-mineru
     restart: always
     ports:
@@ -326,19 +326,15 @@ services:
     # 如果使用 GPU 版本（Dockerfile），需要启用 GPU 支持
     # 并将上面的 dockerfile: Dockerfile.cpu 改为 dockerfile: Dockerfile
     # deploy:
+    # GPU 版本（Dockerfile）才需要以下配置；当前服务器无 GPU，使用 CPU 版本（Dockerfile.cpu），
+    # 如换回 GPU 版本请取消注释并启用 nvidia driver（需安装 nvidia-container-toolkit）
+    # deploy:
     #   resources:
     #     reservations:
     #       devices:
     #         - driver: nvidia
     #           count: 1
     #           capabilities: [gpu]
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 volumes:
   postgres-data:
   minio-data:
