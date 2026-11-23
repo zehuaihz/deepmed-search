@@ -49,7 +49,7 @@ services:
 
   # MinIO 对象存储服务（文件存储 + Milvus 向量存储）
   minio:
-    image: minio/minio:latest
+    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/minio/minio:latest
     container_name: deepmed-minio
     restart: always
     environment:

@@ -5,7 +5,7 @@ import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils";
 import { ChevronRight, type LucideIcon } from "lucide-react";
-import useResizeObserver from "use-resize-observer";
+import useResizeObserver from "@/hooks/use-resize-observer";
 
 interface TreeDataItem {
     id: string;
@@ -71,7 +71,7 @@ const Tree = React.forwardRef<
         return ids;
     }, [data, initialSlelectedItemId])
 
-    const { ref: refRoot, width, height } = useResizeObserver();
+    const { ref: refRoot, width, height } = useResizeObserver<HTMLDivElement>();
 
     return (
         <div ref={refRoot} className={cn("overflow-hidden", className)}>
