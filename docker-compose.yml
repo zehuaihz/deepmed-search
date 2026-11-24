@@ -7,7 +7,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"  # Traefik 仪表板（可选）
+      - "127.0.0.1:8080:8080"  # Traefik 仪表板（仅回环，SSH 隧道访问）
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
@@ -34,7 +34,7 @@ services:
     container_name: deepmed-postgres
     restart: always
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -59,8 +59,8 @@ services:
     volumes:
       - minio-data:/data
     ports:
-      - "${MINIO_PORT:-9000}:9000" # API 端口
-      - "9001:9001" # 控制台端口
+      - "127.0.0.1:${MINIO_PORT:-9000}:9000" # API 端口（仅回环）
+      - "127.0.0.1:9001:9001" # 控制台端口（仅回环，SSH 隧道访问）
     command: minio server /data --console-address ":9001"
     healthcheck:
       test: [ "CMD", "mc", "ready", "local" ]
@@ -94,8 +94,8 @@ services:
       timeout: 20s
       retries: 3
     ports:
-      - "19530:19530"
-      - "9091:9091"
+      - "127.0.0.1:19530:19530"
+      - "127.0.0.1:9091:9091"
     depends_on:
       - minio
     restart: always
@@ -106,7 +106,9 @@ services:
     container_name: deepmed-redis
     restart: always
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      # 仅监听回环地址：app/worker 走 Docker 内网访问 redis，宿主映射只为调试；
+      # 公网 IP 上暴露无密码 redis 有安全风险。默认 16379 避开常见占用。
+      - "127.0.0.1:${REDIS_PORT:-16379}:6379"
     volumes:
       - redis-data:/data
     command: redis-server --appendonly yes
@@ -235,7 +237,7 @@ services:
     container_name: deepmed-markitdown
     restart: always
     ports:
-      - "${MARKITDOWN_PORT:-5001}:5000"
+      - "127.0.0.1:${MARKITDOWN_PORT:-5001}:5000"
     environment:
       PORT: 5000
       APP_ENV: production
@@ -280,7 +282,7 @@ services:
       dockerfile: Dockerfile
     container_name: deepmed-bull-board
     ports:
-      - "${BULL_BOARD_PORT:-8003}:3000"
+      - "127.0.0.1:${BULL_BOARD_PORT:-8003}:3000"
     environment:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       REDIS_HOST: ${REDIS_HOST:-redis}
