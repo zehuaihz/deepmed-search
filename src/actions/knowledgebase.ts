@@ -207,12 +207,11 @@ export const deleteKnowledgeBaseAction = withAuth(async (session, id: string) =>
 });
 
 export const getKnowledgeBaseAction = withAuth(async (session, id: string) => {
+    // 仅查询知识库本体字段：前端（设置表单、搜索页等）只使用 KB 自身的配置，
+    // 从不使用 documents / tags 关联数据。全量 include 会让 payload 随文档数线性膨胀，
+    // 是知识库设置页加载慢的直接原因。
     const knowledgeBase = await prisma.knowledgeBase.findUnique({
         where: { id },
-        include: {
-            documents: true,
-            tags: true,
-        }
     });
 
     if (!knowledgeBase) {
@@ -250,6 +249,38 @@ export const listKnowledgeBasesAction = withAuth(async (session, params?: {
         };
     }
 
+    // 列表瘦身：只查卡片/侧边栏需要的字段。
+    // 1) 去掉 documents/tags include —— 前端只用 doc_num 字段，关联查询会让
+    //    响应体随文档总数线性膨胀（每个文档的 id 都会传一遍），是列表慢的主因；
+    // 2) 排除 parser_config 等大 JSON 字段 —— 设置表单的数据来自 getKnowledgeBaseAction，
+    //    列表项从不使用它们。
+    const listItemSelect = Prisma.validator<Prisma.KnowledgeBaseSelect>()({
+        id: true,
+        name: true,
+        description: true,
+        avatar: true,
+        chunk_num: true,
+        doc_num: true,
+        token_num: true,
+        parser_id: true,
+        permission: true,
+        similarity_threshold: true,
+        vector_similarity_weight: true,
+        embd_id: true,
+        language: true,
+        operator_permission: true,
+        visible: true,
+        status: true,
+        tenant_id: true,
+        created_at: true,
+        updated_at: true,
+        created_by: true,
+        chunk_size: true,
+        overlap_size: true,
+        split_by: true,
+        separators: true,
+    });
+
     const [total, items] = await Promise.all([
         prisma.knowledgeBase.count({ where }),
         prisma.knowledgeBase.findMany({
@@ -257,14 +288,7 @@ export const listKnowledgeBasesAction = withAuth(async (session, params?: {
             skip: (page - 1) * pageSize,
             take: pageSize,
             orderBy: { created_at: 'desc' },
-            include: {
-                tags: true,
-                documents: {
-                    select: {
-                        id: true
-                    }
-                }
-            }
+            select: listItemSelect,
         }),
     ]);
 

@@ -20,7 +20,6 @@ import { toast } from 'sonner';
 import { formatDate } from '@/utils/date';
 import { useRouter } from 'next/navigation';
 import { useTranslate } from '@/contexts/language-context';
-import { useEffect } from 'react';
 import { useKnowledgeBaseContext } from '@/contexts/knowledgebase-context';
 
 /**
@@ -40,9 +39,6 @@ export function KnowledgeBaseCard({ item }: IKnowledgeBaseCardProps) {
     const router = useRouter();
     const { t } = useTranslate('knowledgeBase');
     const { deleteKnowledgeBase } = useKnowledgeBaseContext();
-    useEffect(() => {
-        console.log(item)
-    }, [item,])
 
     /**
      * 处理删除知识库
@@ -114,7 +110,7 @@ export function KnowledgeBaseCard({ item }: IKnowledgeBaseCardProps) {
                     <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
                         <span className="text-xs font-semibold">
-                            {formatDate(item.updated_at)}
+                            {formatDate(item.created_at)}
                         </span>
                     </div>
                 </div>
