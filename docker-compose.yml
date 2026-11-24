@@ -262,7 +262,8 @@ services:
     image: zilliz/attu:latest
     container_name: attu
     ports:
-      - "8001:3000"
+      # 宿主端口默认 18001（原 8001 与同服务器的 stock-webui 冲突，可用 ACTU_PORT 覆盖）
+      - "${ACTU_PORT:-18001}:3000"
     environment:
       MILVUS_URL: milvus:19530
       # Attu 默认连接配置
