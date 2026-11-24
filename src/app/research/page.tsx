@@ -6,9 +6,6 @@ import { StepAction, AnswerAction } from '@/lib/deep-research/types'; // 导入�
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2 } from 'lucide-react'; // 加载图标
-import ReactMarkdown from 'react-markdown'; // 用于渲染 Markdown
-import remarkGfm from 'remark-gfm'; // 支持 GFM (表格, 删除线等)
-import rehypeRaw from 'rehype-raw'; // 支持直接渲染 HTML
 import { ServerActionResponse } from '@/types/actions'; // 导入 ServerActionResponse 类型
 import ThinkStatusDisplay from './components/think';
 import { useTranslate } from '@/contexts/language-context';

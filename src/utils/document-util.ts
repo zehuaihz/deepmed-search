@@ -1,5 +1,7 @@
 import { IChunk } from "@/types/chunk";
-import { IHighlight } from "react-pdf-highlighter";
+// 仅类型引用：确保 react-pdf-highlighter（内含 pdf.js，体积巨大）
+// 永远不会因此被打进客户端 bundle。
+import type { IHighlight } from "react-pdf-highlighter";
 
 export function getExtension(filename: string): string {
     const parts = filename.split('.');

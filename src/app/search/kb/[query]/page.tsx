@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { Suspense, useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 // Import the KB search action and result type
@@ -128,7 +128,8 @@ const PaginationControls = ({ currentPage, totalPages, onPageChange }: Paginatio
 };
 // --- End Pagination Component ---
 
-export default function KbSearchResultsPage() {
+// useSearchParams() 需要包裹在 Suspense 边界内，否则静态预渲染会构建失败。
+function KbSearchResultsPage() {
     const params = useParams();
     const router = useRouter();
     const searchParams = useSearchParams(); // Get search params
@@ -393,5 +394,22 @@ export default function KbSearchResultsPage() {
                 </DialogContent>
             </Dialog>
         </div>
+    );
+}
+
+// 预渲染 / SSR 期间的回退骨架，避免页面空白
+const KbSearchFallback = () => (
+    <main className='flex-1 p-8 space-y-4' aria-hidden>
+        <div className='h-10 w-2/3 rounded bg-muted/50 animate-pulse' />
+        <KbChunkSkeleton />
+        <KbChunkSkeleton />
+    </main>
+);
+
+export default function KbSearchPage() {
+    return (
+        <Suspense fallback={<KbSearchFallback />}>
+            <KbSearchResultsPage />
+        </Suspense>
     );
 }

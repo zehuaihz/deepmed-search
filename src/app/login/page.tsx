@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
@@ -341,4 +341,26 @@ const Login = () => {
     );
 };
 
-export default Login;
+// useSearchParams() 必须包裹在 Suspense 边界内，否则静态预渲染构建失败。
+// 回退骨架保持两栏布局，SSR / 预渲染期间页面不空白。
+const LoginFallback = () => (
+    <div className="flex min-h-screen">
+        <div className="w-3/5 bg-gradient-to-b from-background via-background to-background" />
+        <div className="w-2/5 flex items-center justify-center p-8">
+            <div className="w-full max-w-md space-y-4">
+                <div className="h-8 w-40 rounded bg-muted/60 animate-pulse" />
+                <div className="h-10 w-full rounded bg-muted/40 animate-pulse" />
+                <div className="h-10 w-full rounded bg-muted/40 animate-pulse" />
+                <div className="h-10 w-full rounded bg-muted/60 animate-pulse" />
+            </div>
+        </div>
+    </div>
+);
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<LoginFallback />}>
+            <Login />
+        </Suspense>
+    );
+};

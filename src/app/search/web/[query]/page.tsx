@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { Suspense, useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { performWebSearch, SearchEngineType } from '@/actions/web-search';
 import { StandardSearchResult } from '@/lib/web-search/common';
@@ -63,7 +63,8 @@ const PaginationControls = ({ currentPage, totalPages, onPageChange }: Paginatio
     );
 };
 
-export default function WebSearchResultsPage() {
+// useSearchParams() 需要包裹在 Suspense 边界内，否则静态预渲染会构建失败。
+function WebSearchResultsPage() {
     const params = useParams();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -209,5 +210,22 @@ export default function WebSearchResultsPage() {
                 </>
             )}
         </main>
+    );
+}
+
+// 预渲染 / SSR 期间的回退骨架，避免页面空白
+const WebSearchFallback = () => (
+    <main className="flex-1 p-8 space-y-4" aria-hidden>
+        <div className="h-10 w-2/3 rounded bg-muted/50 animate-pulse" />
+        <div className="h-4 w-1/2 rounded bg-muted/30 animate-pulse" />
+        <div className="h-40 w-full rounded bg-muted/20 animate-pulse" />
+    </main>
+);
+
+export default function WebSearchPage() {
+    return (
+        <Suspense fallback={<WebSearchFallback />}>
+            <WebSearchResultsPage />
+        </Suspense>
     );
 }

@@ -1,13 +1,38 @@
 'use client';
 
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeRaw from 'rehype-raw';
-import rehypeKatex from 'rehype-katex';
-import { cn } from '@/lib/utils';
-import { Mermaid } from './mermaid';
-import 'katex/dist/katex.min.css';
+import dynamic from 'next/dynamic';
+import type ReactMarkdown from 'react-markdown';
+
+// 懒加载真正的 Markdown 渲染管线。
+// react-markdown + remark/rehype（约 345KB）不再进入首屏同步加载路径：
+// 首帧只输出轻量骨架，管线 chunk（有不可变缓存）就绪后即渲染。
+const MarkdownImpl = dynamic(
+    () => import('./markdown-impl').then((mod) => mod.MarkdownImpl),
+    { ssr: false, loading: MarkdownLoading }
+);
+
+// 带数学公式支持的实现：叠加 KaTeX（约 262KB JS + CSS），
+// 仅在内容包含数学定界符时才加载，绝大多数普通消息完全不会请求该 chunk。
+const MarkdownImplMath = dynamic(
+    () => import('./markdown-impl-math').then((mod) => mod.MarkdownImplMath),
+    { ssr: false, loading: MarkdownLoading }
+);
+
+// 数学定界符检测：$$...$$、\(...\)、\[...\] 或要求紧贴内容的 $...$
+const MATH_PATTERN = /\$\$[\s\S]+?\$\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|\$[^\s$][^$\n]*?\$/;
+
+function hasMath(content: string): boolean {
+    return MATH_PATTERN.test(content);
+}
+
+function MarkdownLoading() {
+    return (
+        <div
+            className="my-2 h-4 w-2/3 animate-pulse rounded bg-muted/60"
+            aria-hidden
+        />
+    );
+}
 
 interface MarkdownProps {
     content: string;
@@ -16,52 +41,15 @@ interface MarkdownProps {
 }
 
 /**
- * 通用的 Markdown 渲染组件
- * 已包含表格、图片、数学公式和流程图支持，以及表格边框样式
+ * 通用的 Markdown 渲染组件（对外 API 保持不变）
+ * 已包含表格、图片、数学公式和流程图支持，以及表格边框样式。
+ *
+ * 性能说明：
+ * - 渲染管线（react-markdown/remark/rehype）按需懒加载，不再阻塞首屏；
+ * - 含数学公式的内容才额外加载 KaTeX；
+ * - mermaid 代码块才加载 mermaid（见 markdown-impl.tsx）。
  */
 export function Markdown({ content, className, components }: MarkdownProps) {
-    // 合并自定义组件和默认组件
-    const mergedComponents = {
-        // 处理代码块，检测 mermaid 语言
-        code({ node, inline, className: codeClassName, children, ...props }: any) {
-            const match = /language-(\w+)/.exec(codeClassName || '');
-            const language = match && match[1] ? match[1] : '';
-            const codeContent = String(children).replace(/\n$/, '');
-
-            // 如果是 mermaid 代码块，使用 Mermaid 组件渲染
-            if (!inline && language === 'mermaid') {
-                return <Mermaid chart={codeContent} />;
-            }
-
-            // 默认代码块渲染
-            return (
-                <code className={codeClassName} {...props}>
-                    {children}
-                </code>
-            );
-        },
-        ...components,
-    };
-
-    return (
-        <div className={cn(
-            "prose prose-sm max-w-none dark:prose-invert",
-            // 表格边框样式
-            "[&_table]:border [&_table]:border-border [&_table]:border-solid [&_table]:border-[1px]",
-            "[&_th]:border [&_th]:border-border [&_th]:border-solid [&_th]:border-[1px]",
-            "[&_td]:border [&_td]:border-border [&_td]:border-solid [&_td]:border-[1px]",
-            "[&_th]:px-3 [&_th]:py-2 [&_td]:px-3 [&_td]:py-2",
-            "[&_table]:border-collapse [&_th]:bg-muted/50",
-            className
-        )}>
-            <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkMath]}
-                rehypePlugins={[rehypeRaw, rehypeKatex]}
-                components={mergedComponents}
-            >
-                {content}
-            </ReactMarkdown>
-        </div>
-    );
+    const Impl = hasMath(content) ? MarkdownImplMath : MarkdownImpl;
+    return <Impl content={content} className={className} components={components} />;
 }
-
