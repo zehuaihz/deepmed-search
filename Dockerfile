@@ -80,6 +80,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 
+# 预创建日志目录并授权：winston 在模块加载时需要创建 /app/logs，
+# 非 root 用户 nextjs 对 root 属主的 /app 无写权限，会导致 EACCES digest 错误
+# （Dockerfile.worker 已有等效处理，此前 app 镜像遗漏）
+RUN mkdir -p /app/logs && chown -R nextjs:nodejs /app/logs
+
 # 切换到非 root 用户
 USER nextjs
 
