@@ -163,10 +163,10 @@ services:
       dockerfile: Dockerfile
     container_name: deepmed-app
     # 端口配置说明：
-    # - 生产环境：推荐只通过 Traefik (HTTPS) 访问，注释掉下面的 ports
-    # - 开发/调试：如需直接访问 3000 端口，可取消注释下面的 ports
-    # ports:
-    #   - "${APP_PORT:-3000}:3000"
+    # - 生产环境（有域名 + Traefik HTTPS）：注释掉下面的 ports，仅走 Traefik
+    # - 当前服务器以 IP 直连访问（NEXTAUTH_URL=http://72.62.245.7:3000），需直接暴露 3000
+    ports:
+      - "${APP_PORT:-3000}:3000"
     expose:
       - "3000"  # 仅在 Docker 网络内暴露，供 Traefik 使用
     labels:
