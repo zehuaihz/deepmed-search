@@ -59,7 +59,7 @@ services:
     volumes:
       - minio-data:/data
     ports:
-      - "127.0.0.1:${MINIO_PORT:-9000}:9000" # API 端口（仅回环）
+      - "${MINIO_PUBLIC_PORT:-9000}:9000" # S3 API 端口（IP 直连模式下浏览器需直接访问文件下载/预览）
       - "127.0.0.1:9001:9001" # 控制台端口（仅回环，SSH 隧道访问）
     command: minio server /data --console-address ":9001"
     healthcheck:
@@ -153,6 +153,16 @@ services:
       MINERU_URL: http://mineru:8000
       MINERU_API_KEY: ${MINERU_API_KEY:-}
       MINERU_BASE_URL: ${MINERU_BASE_URL:-}
+
+      # MinIO 配置（worker 写回 markdown_url 时需要公共地址）
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio}
+      MINIO_PORT: ${MINIO_PORT:-9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      NEXT_PUBLIC_MINIO_ENDPOINT: ${NEXT_PUBLIC_MINIO_ENDPOINT:-localhost}
+      NEXT_PUBLIC_MINIO_PORT: ${NEXT_PUBLIC_MINIO_PORT:-9000}
+      NEXT_PUBLIC_MINIO_PUBLIC_URL: ${NEXT_PUBLIC_MINIO_PUBLIC_URL:-http://localhost:9000}
       
       # 注意：所有 LLM 和搜索 API Keys 从用户配置中读取（数据库）
       # 用户需在 /settings/llm 和 /settings/search 页面配置
@@ -209,10 +219,18 @@ services:
       MINERU_API_KEY: ${MINERU_API_KEY:-}
       MINERU_BASE_URL: ${MINERU_BASE_URL:-}
       # MinIO 配置
-      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      # 注意：MINIO_ENDPOINT 必须是纯主机名（不带协议/端口），
+      # 端口由 MINIO_PORT 控制（minio-js 的 endPoint 字段不接受 "host:port"，
+      # 否则报 Invalid endPoint 错误）
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio}
+      MINIO_PORT: ${MINIO_PORT:-9000}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      # MinIO 公共访问地址（浏览器下载/预览文件用；IP 直连模式必须指向服务器可达地址）
+      NEXT_PUBLIC_MINIO_ENDPOINT: ${NEXT_PUBLIC_MINIO_ENDPOINT:-localhost}
+      NEXT_PUBLIC_MINIO_PORT: ${NEXT_PUBLIC_MINIO_PORT:-9000}
+      NEXT_PUBLIC_MINIO_PUBLIC_URL: ${NEXT_PUBLIC_MINIO_PUBLIC_URL:-http://localhost:9000}
       # Redis 配置
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       # Milvus 配置
