@@ -35,9 +35,25 @@ export class DeepSeekProvider implements Provider {
     this.model = config.model || 'deepseek-chat';
     this.reasonModel = config.reasonModel || 'deepseek-reasoner';
 
+    // 规范化 baseURL：DeepSeek 官方 OpenAI 兼容接口位于 /v1 路径。
+    // 用户常填 https://api.deepseek.com（缺 /v1），会导致请求打到
+    // /chat/completions 返回 404。留空时使用 SDK 默认值（已含 /v1）。
+    let normalizedBaseUrl = config.baseUrl?.trim() || undefined;
+    if (normalizedBaseUrl) {
+      try {
+        const url = new URL(normalizedBaseUrl);
+        if (url.hostname === 'api.deepseek.com' && !url.pathname.startsWith('/v1')) {
+          normalizedBaseUrl = normalizedBaseUrl.replace(/\/+$/, '') + '/v1';
+          logger.info('[DeepSeek] baseUrl normalized to /v1:', normalizedBaseUrl);
+        }
+      } catch {
+        // 非法 URL 原样透传，由 SDK 报错
+      }
+    }
+
     this.provider = createDeepSeek({
       apiKey: config.apiKey,
-      baseURL: config.baseUrl,
+      baseURL: normalizedBaseUrl,
     });
 
     this.historyMap = new Map();

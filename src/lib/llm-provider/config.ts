@@ -9,7 +9,7 @@ import {
  * DeepSeek 默认配置
  */
 export const DEFAULT_DEEPSEEK_CONFIG: Partial<DeepSeekConfig> = {
-  baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
+  baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1',
   model: process.env.DEEPSEEK_API_MODEL || 'deepseek-chat',
   reasonModel: process.env.DEEPSEEK_API_REASON_MODEL || 'deepseek-reasoner',
   temperature: 0.7,
