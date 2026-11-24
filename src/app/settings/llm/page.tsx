@@ -64,6 +64,13 @@ const DEFAULT_BASE_URLS = {
   google: '',
 };
 
+// 留空时实际使用的默认模型（与后端 provider 实现的 fallback 保持一致）
+const DEFAULT_MODEL_HINTS = {
+  deepseek: 'deepseek-chat',
+  openai: 'gpt-4o-mini',
+  google: 'gemini-2.0-flash-exp',
+} as const;
+
 export default function LLMSettingsPage() {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(true);
@@ -474,43 +481,45 @@ export default function LLMSettingsPage() {
               </p>
             </div>
 
-            {/* 模型选择 */}
+            {/* 模型（手动填写，支持任意模型名） */}
             <div className="space-y-2">
               <Label htmlFor="model">模型（可选，用于普通对话）</Label>
-              <Select value={model} onValueChange={setModel}>
-                <SelectTrigger>
-                  <SelectValue placeholder="选择模型" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MODEL_OPTIONS[provider].map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {provider === 'deepseek' && (
-                <p className="text-xs text-muted-foreground">
-                  用于普通对话的模型，推荐使用 deepseek-chat。思考模式使用下面的&quot;推理模型&quot;。
-                </p>
-              )}
+              <Input
+                id="model"
+                list="model-options"
+                placeholder={`例如：${DEFAULT_MODEL_HINTS[provider]}（留空即使用此默认值）`}
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+              />
+              <datalist id="model-options">
+                {MODEL_OPTIONS[provider].map((option) => (
+                  <option key={option.value} value={option.value} />
+                ))}
+              </datalist>
+              <p className="text-xs text-muted-foreground">
+                可直接输入提供商支持的任意模型名称，也可从输入框下拉建议中选择。
+                {provider === 'deepseek' &&
+                  ' 普通对话推荐 deepseek-chat；思考模式使用下面的“推理模型”。'}
+              </p>
             </div>
 
-            {/* DeepSeek 推理模型 */}
+            {/* DeepSeek 推理模型（手动填写，支持任意模型名） */}
             {provider === 'deepseek' && (
               <div className="space-y-2">
                 <Label htmlFor="reasonModel">推理模型（可选，用于思考模式）</Label>
-                <Select value={reasonModel} onValueChange={setReasonModel}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="deepseek-reasoner（默认）" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="deepseek-reasoner">deepseek-reasoner（推荐）</SelectItem>
-                    <SelectItem value="deepseek-chat">deepseek-chat</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="reasonModel"
+                  list="reason-model-options"
+                  placeholder="例如：deepseek-reasoner（留空即使用此默认值）"
+                  value={reasonModel}
+                  onChange={(e) => setReasonModel(e.target.value)}
+                />
+                <datalist id="reason-model-options">
+                  <option value="deepseek-reasoner" />
+                  <option value="deepseek-chat" />
+                </datalist>
                 <p className="text-xs text-muted-foreground">
-                  用于思考模式的模型，留空将使用 deepseek-reasoner。普通对话使用上面的&quot;模型&quot;字段。
+                  可直接输入任意推理模型名称，留空将使用 deepseek-reasoner。普通对话使用上面的“模型”字段。
                 </p>
               </div>
             )}
