@@ -93,9 +93,10 @@ export async function GET(req: NextRequest) {
                 // 监听 Redis 消息
                 subscriber.on('message', async (ch, message) => {
                     if (ch === channel) {
-                        console.log(`[SSE ${taskId}] Received message on channel ${channel}:`, message);
                         try {
                             const event: TrackerEvent = JSON.parse(message);
+                            // 只打印事件类型与长度，避免巨型 result payload（可达数十万字符）刷屏日志
+                            console.log(`[SSE ${taskId}] Received ${event.type} event on channel ${channel} (${message.length} chars)`);
 
                             // 处理事件
                             let originalEventData = '';

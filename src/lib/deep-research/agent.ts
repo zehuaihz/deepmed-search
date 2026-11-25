@@ -239,19 +239,39 @@ export class ResearchAgent {
                 this.thisStep = nextAction;
             }
 
-            // 防御：解析链异常时 answer 可能被拆成 {"0":"c","1":"h",...} 索引对象，
-            // 在进入 answer 处理与前端展示之前先重建为字符串。
-            if (this.thisStep && typeof (this.thisStep as any).answer === 'object') {
-                const repaired = repairIndexedString((this.thisStep as any).answer);
-                if (typeof repaired === 'string') {
-                    (this.thisStep as any).answer = repaired;
-                    console.log('[Agent] answer 为索引对象形态，已重建为字符串，长度:', repaired.length);
+            // 防御：解析链异常时，answer 可能被模型以 "result" 字段名输出，
+            // 且值可能被拆成 {"0":"c","1":"h",...} 索引对象。
+            // 在进入 answer 处理与前端展示之前先重建为字符串，并归一到 answer 字段。
+            if (this.thisStep) {
+                const step = this.thisStep as any;
+                for (const field of ['answer', 'result'] as const) {
+                    if (step[field] === undefined) continue;
+                    const repaired = repairIndexedString(step[field]);
+                    if (typeof repaired === 'string') {
+                        if (field === 'result') {
+                            // 模型偶尔把 answer 内容输出到 result 字段：归一到 answer
+                            if (typeof step.answer !== 'string') step.answer = repaired;
+                        } else {
+                            step.answer = repaired;
+                        }
+                        console.log(`[Agent] thisStep.${field} 为索引对象形态，已重建为字符串，长度:`, repaired.length);
+                    }
                 }
             }
 
             const actionsStr = [this.allowSearch && 'search', this.allowRead && 'visit', this.allowAnswer && 'answer', this.allowReflect && 'reflect'].filter(Boolean).join(', ');
             console.log(`${currentQuestion}: ${this.thisStep.action} <- [${actionsStr}]`);
-            console.log(this.thisStep)
+            // 只打印摘要，避免巨型答案内容刷屏（answer 可达数千行）
+            {
+                const step = this.thisStep as any;
+                console.log('[Agent] thisStep summary:', {
+                    action: step.action,
+                    think: typeof step.think === 'string' ? `${step.think.substring(0, 100)}...` : step.think,
+                    answerType: typeof step.answer,
+                    answerLength: typeof step.answer === 'string' ? step.answer.length : undefined,
+                    isFinal: step.isFinal,
+                });
+            }
 
             // 发送详细的思考过程到前端
             if (this.thisStep.think) {

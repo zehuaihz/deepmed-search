@@ -86,6 +86,7 @@ interface Reference {
 interface ResearchResult {
     action: string;
     answer?: string | Record<string, string>;
+    result?: unknown;
     references?: Reference[];
     think?: string;
     isFinal?: boolean;
@@ -192,21 +193,27 @@ export default function ThinkStatusDisplay({ taskId }: ThinkStatusDisplayProps) 
         sseStateRef.current.eventSource = eventSource;
         sseStateRef.current.isCreated = true;
 
+        // 记录本次连接是否成功 open 过。
+        // 不能用闭包里的 isConnected（那是 effect 执行时的旧快照，永远为 false，会导致误报超时）。
+        const openedTracker = { opened: false };
+
         // 添加连接超时处理
         const connectionTimeout = setTimeout(() => {
-            if (!isConnected) {
+            if (!openedTracker.opened) {
                 console.error(`ThinkStatusDisplay: Connection timeout for taskId: ${taskId}`);
                 setError(t('connectionTimeout'));
                 setIsConnected(false);
                 if (sseStateRef.current.eventSource) {
                     sseStateRef.current.eventSource.close();
                     sseStateRef.current.eventSource = null;
+                    sseStateRef.current.isCreated = false;
                 }
             }
         }, 30000); // 30 秒超时
 
         eventSource.onopen = () => {
             console.log(`ThinkStatusDisplay: SSE connection opened successfully for taskId: ${taskId}`);
+            openedTracker.opened = true;
             // 任务已结束却发生自动重连时，直接关闭，不再恢复"思考中"状态
             if (taskDoneRef.current) {
                 console.log(`ThinkStatusDisplay: Task already done, closing reconnected SSE for taskId: ${taskId}`);
@@ -422,15 +429,13 @@ export default function ThinkStatusDisplay({ taskId }: ThinkStatusDisplayProps) 
             try {
                 const data = JSON.parse(event.data);
                 console.log("ThinkStatusDisplay: Received result event data:", data);
-                if (data && data.result && typeof data.result === 'object') {
-                    setResearchResult(data.result);
+                if (data && typeof data === 'object') {
+                    // 保存完整 payload：mdAnswer（富文本）与 result/answer（正文）都在顶层，
+                    // 渲染层按 mdAnswer → 重建 answer → 原始字符串 的优先级展示
+                    setResearchResult(data);
                 } else {
                     console.warn("ThinkStatusDisplay: Received result event data in unexpected format:", data);
-                    if (typeof data === 'object' && data !== null && data.action) {
-                        setResearchResult(data);
-                    }
                 }
-                console.log("ThinkStatusDisplay: Received result event data:", data);
             } catch (e) {
                 console.error("Failed to parse result event data:", e);
             }
@@ -729,9 +734,15 @@ export default function ThinkStatusDisplay({ taskId }: ThinkStatusDisplayProps) 
                                         </p>
                                     ))}
                                 </div>
-                            ) : (researchResult.mdAnswer || reconstructIndexedAnswer(researchResult.answer) || (typeof researchResult.answer === 'string' && researchResult.answer)) ? (
+                            ) : (researchResult.mdAnswer
+                                || reconstructIndexedAnswer(researchResult.result)
+                                || reconstructIndexedAnswer(researchResult)
+                                || reconstructIndexedAnswer(researchResult.answer)
+                                || (typeof researchResult.answer === 'string' && researchResult.answer)) ? (
                                 <div className="space-y-4">
                                     {(researchResult.mdAnswer
+                                        || reconstructIndexedAnswer(researchResult.result)
+                                        || reconstructIndexedAnswer(researchResult)
                                         || reconstructIndexedAnswer(researchResult.answer)
                                         || (researchResult.answer as string)).split('\n\n').map((paragraph: string, index: number) => {
                                         const processedParagraph = paragraph.replace(/\[\^(\d+)\]/g, (match: string, num: string) => {
