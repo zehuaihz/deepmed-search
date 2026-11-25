@@ -331,10 +331,17 @@ export async function processFinalAnswerHelper(thisAgent: ResearchAgent, answerA
     const options = (thisAgent as any).options as any; // Assuming ResearchAgentOptions type
 
     if (trivialQuestion) {
-        answerAction.mdAnswer = answerAction.mdAnswer || convertHtmlTablesToMd(
-            fixCodeBlockIndentation(
-                buildMdFromAnswer(answerAction))
-        );
+        // 防御：mdAnswer 后处理链（markdown 修复/表格转换）依赖 LLM 输出的完整性，
+        // 任一环节抛错不应导致整个研究任务失败，回退为原始 answer。
+        try {
+            answerAction.mdAnswer = answerAction.mdAnswer || convertHtmlTablesToMd(
+                fixCodeBlockIndentation(
+                    buildMdFromAnswer(answerAction))
+            );
+        } catch (e) {
+            console.error('Error building mdAnswer for trivial question, falling back to raw answer:', e);
+            answerAction.mdAnswer = answerAction.answer || '';
+        }
         return;
     }
 

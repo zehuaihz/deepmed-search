@@ -27,7 +27,8 @@ export function repairMarkdownFootnotes(
   // Helper function to format references
   const formatReferences = (refs: Array<Reference>) => {
     return refs.map((ref, i) => {
-      const cleanQuote = ref.exactQuote
+      // LLM 输出的 reference 可能缺少 exactQuote 字段（类型声明为可选），需防御 undefined
+      const cleanQuote = (ref.exactQuote || '')
         .replace(/[^\p{L}\p{N}\s]/gu, ' ')
         .replace(/\s+/g, ' ').trim();
 
