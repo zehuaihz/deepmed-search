@@ -1,5 +1,9 @@
 import 'dotenv/config';
 
+// 必须作为首个副作用 import：给 console.* 统一加时间前缀，
+// 使后续所有 worker 启动与业务日志都带时间戳。
+import '@/utils/log-timestamp';
+
 // 初始化所有需要的队列 worker。仅需导入即可触发 createWorker 中的副作用。
 import '@/lib/bullmq/document-worker';
 import '@/lib/bullmq/research-worker';
