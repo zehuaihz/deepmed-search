@@ -5,6 +5,7 @@ import { ActionTracker } from './utils/action-tracker';
 import { ObjectGeneratorSafe } from "./utils/safe-generator";
 import { Schemas } from "./utils/schemas";
 import { sleep } from './utils/common';
+import { repairIndexedString } from './utils/text-tools';
 import {
     StepAction,
     AnswerAction,
@@ -236,6 +237,16 @@ export class ResearchAgent {
                 }
             } else {
                 this.thisStep = nextAction;
+            }
+
+            // 防御：解析链异常时 answer 可能被拆成 {"0":"c","1":"h",...} 索引对象，
+            // 在进入 answer 处理与前端展示之前先重建为字符串。
+            if (this.thisStep && typeof (this.thisStep as any).answer === 'object') {
+                const repaired = repairIndexedString((this.thisStep as any).answer);
+                if (typeof repaired === 'string') {
+                    (this.thisStep as any).answer = repaired;
+                    console.log('[Agent] answer 为索引对象形态，已重建为字符串，长度:', repaired.length);
+                }
             }
 
             const actionsStr = [this.allowSearch && 'search', this.allowRead && 'visit', this.allowAnswer && 'answer', this.allowReflect && 'reflect'].filter(Boolean).join(', ');

@@ -85,11 +85,30 @@ interface Reference {
 
 interface ResearchResult {
     action: string;
-    answer?: string;
+    answer?: string | Record<string, string>;
     references?: Reference[];
     think?: string;
     isFinal?: boolean;
     mdAnswer?: string;
+}
+
+/**
+ * 服务端解析链异常时，answer 可能被拆成 {"0":"c","1":"h",...} 的数字索引映射。
+ * 检测该形态并按键的数值顺序重建字符串；无法重建时返回 null。
+ */
+function reconstructIndexedAnswer(value: unknown): string | null {
+    if (typeof value === 'string') return value;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record);
+    if (keys.length === 0) return null;
+    const isIndexMap = keys.every(k => /^\d+$/.test(k))
+        && keys.every(k => typeof record[k] === 'string');
+    if (!isIndexMap) return null;
+    return keys
+        .sort((a, b) => Number(a) - Number(b))
+        .map(k => record[k] as string)
+        .join('');
 }
 
 // Define props interface
@@ -691,9 +710,11 @@ export default function ThinkStatusDisplay({ taskId }: ThinkStatusDisplayProps) 
                                         </p>
                                     ))}
                                 </div>
-                            ) : researchResult.mdAnswer ? (
+                            ) : (researchResult.mdAnswer || reconstructIndexedAnswer(researchResult.answer) || (typeof researchResult.answer === 'string' && researchResult.answer)) ? (
                                 <div className="space-y-4">
-                                    {researchResult.mdAnswer.split('\n\n').map((paragraph: string, index: number) => {
+                                    {(researchResult.mdAnswer
+                                        || reconstructIndexedAnswer(researchResult.answer)
+                                        || (researchResult.answer as string)).split('\n\n').map((paragraph: string, index: number) => {
                                         const processedParagraph = paragraph.replace(/\[\^(\d+)\]/g, (match: string, num: string) => {
                                             return `<sup class="text-primary cursor-pointer hover:text-primary/80">[${num}]</sup>`;
                                         });
@@ -702,18 +723,16 @@ export default function ThinkStatusDisplay({ taskId }: ThinkStatusDisplayProps) 
                                         );
                                     })}
                                 </div>
-                            ) : researchResult.answer ? (
-                                <div className="space-y-4">
-                                    {researchResult.answer.split('\n\n').map((paragraph: string, index: number) => (
-                                        <p key={index} className="text-base leading-relaxed">
-                                            {paragraph}
-                                        </p>
-                                    ))}
-                                </div>
                             ) : (
-                                <pre className="text-sm bg-muted/40 p-4 rounded-lg overflow-x-auto">
-                                    {JSON.stringify(researchResult, null, 2)}
-                                </pre>
+                                <div className="space-y-4">
+                                    <p className="text-sm text-muted-foreground">
+                                        研究结果未包含可展示的答案内容。若需排查，可展开查看原始返回数据：
+                                    </p>
+                                    <details className="text-sm bg-muted/40 p-4 rounded-lg">
+                                        <summary className="cursor-pointer select-none text-muted-foreground">展开查看原始返回数据（调试用）</summary>
+                                        <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(researchResult, null, 2)}</pre>
+                                    </details>
+                                </div>
                             )}
                         </div>
 

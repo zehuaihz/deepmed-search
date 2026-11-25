@@ -10,7 +10,7 @@ import {
 } from "./utils/url-tools";
 import {
     buildMdFromAnswer, convertHtmlTablesToMd, fixCodeBlockIndentation,
-    repairMarkdownFinal, repairMarkdownFootnotesOuter
+    repairMarkdownFinal, repairMarkdownFootnotesOuter, repairIndexedString
 } from "./utils/text-tools";
 import { repairUnknownChars } from "./tools/broken-ch-fixer";
 import { buildReferences } from "./tools/build-ref";
@@ -340,7 +340,9 @@ export async function processFinalAnswerHelper(thisAgent: ResearchAgent, answerA
             );
         } catch (e) {
             console.error('Error building mdAnswer for trivial question, falling back to raw answer:', e);
-            answerAction.mdAnswer = answerAction.answer || '';
+            // answer 若仍是索引对象形态（{"0":"c",...}），先重建为字符串再兜底
+            const rawAnswer = repairIndexedString(answerAction.answer);
+            answerAction.mdAnswer = typeof rawAnswer === 'string' ? rawAnswer : '';
         }
         return;
     }

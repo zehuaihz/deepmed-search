@@ -852,3 +852,31 @@ export function dedupQueries(inputQueries: string[] | null | undefined, existing
     return !seen.has(nq) && (seen.add(nq), true);
   });
 }
+
+/**
+ * 修复"字符/分块索引对象"形态的损坏字符串。
+ *
+ * 观测到的线上问题：LLM 结构化输出解析链异常时，超长的 answer 可能被存成
+ * {"0":"c","1":"h",...,"9178":"</table>"} 的数字索引映射（每键一个片段）。
+ * 此函数检测该形态并按键的数值顺序拼接重建字符串；非该形态时原样返回。
+ */
+export function repairIndexedString(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return value;
+  }
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  if (keys.length === 0) {
+    return value;
+  }
+  // 所有键必须都是纯数字，且所有值都是字符串片段，否则视为正常对象不处理
+  const isIndexMap = keys.every(k => /^\d+$/.test(k))
+    && keys.every(k => typeof record[k] === 'string');
+  if (!isIndexMap) {
+    return value;
+  }
+  return keys
+    .sort((a, b) => Number(a) - Number(b))
+    .map(k => record[k] as string)
+    .join('');
+}
