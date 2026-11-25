@@ -21,6 +21,15 @@ RUN yarn install --frozen-lockfile --ignore-scripts
 ##### builder #####
 FROM deps AS builder
 
+# MinIO 公共访问地址（构建时注入：NEXT_PUBLIC_* 变量在 next build 时内联进客户端 bundle，
+# 运行时环境变量对客户端组件无效，必须通过 build args 传入）
+ARG NEXT_PUBLIC_MINIO_ENDPOINT=localhost
+ARG NEXT_PUBLIC_MINIO_PORT=9000
+ARG NEXT_PUBLIC_MINIO_PUBLIC_URL=http://localhost:9000
+ENV NEXT_PUBLIC_MINIO_ENDPOINT=$NEXT_PUBLIC_MINIO_ENDPOINT \
+    NEXT_PUBLIC_MINIO_PORT=$NEXT_PUBLIC_MINIO_PORT \
+    NEXT_PUBLIC_MINIO_PUBLIC_URL=$NEXT_PUBLIC_MINIO_PUBLIC_URL
+
 # 只复制构建 Next.js 应用需要的文件，而不是整个项目
 # Next.js 构建需要：源代码、配置文件、Prisma schema
 COPY src ./src
