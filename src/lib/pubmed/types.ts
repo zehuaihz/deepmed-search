@@ -14,4 +14,5 @@ export interface PubMedSearchResult {
     count: number; // Total number of results found by the search
     queryKey?: string; // For ESearch history
     webEnv?: string;   // For ESearch history
+    translatedQuery?: string; // 实际使用的英文检索词（原始查询被翻译时）
 } 

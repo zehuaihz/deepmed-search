@@ -269,6 +269,7 @@ export default function PubMedSearchResultsPage() {
     const router = useRouter();
     const [currentPageResults, setCurrentPageResults] = useState<PubMedArticle[]>([]);
     const [totalCount, setTotalCount] = useState(0);
+    const [translatedQuery, setTranslatedQuery] = useState<string | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
@@ -299,6 +300,7 @@ export default function PubMedSearchResultsPage() {
                 console.log(`Fetched ${response.data.articles.length} PubMed articles for page ${pageToFetch}. Total found: ${response.data.count}`);
                 const articlesWithAbstract = response.data.articles.map(a => ({ ...a, abstract: a.abstract || undefined }));
                 setCurrentPageResults(articlesWithAbstract);
+                setTranslatedQuery(response.data.translatedQuery);
                 if (pageToFetch === 1) {
                     setTotalCount(response.data.count);
                 }
@@ -319,6 +321,7 @@ export default function PubMedSearchResultsPage() {
         setCurrentPage(1);
         setTotalCount(0);
         setCurrentPageResults([]);
+        setTranslatedQuery(undefined);
         fetchResults(1);
     }, [decodedQuery, fetchResults]);
 
@@ -354,6 +357,12 @@ export default function PubMedSearchResultsPage() {
                     </span>
                 )}
             </div>
+
+            {!isLoading && translatedQuery && translatedQuery.toLowerCase() !== query.toLowerCase() && (
+                <p className='text-sm text-muted-foreground mb-4'>
+                    已将查询翻译为英文检索词：<span className='font-semibold'>{translatedQuery}</span>
+                </p>
+            )}
 
             <div className='mb-8 border-b pb-4'>
                 <p className='text-2xl break-words'>{query || '...'}</p>

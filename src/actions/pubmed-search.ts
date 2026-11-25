@@ -8,12 +8,17 @@ import { Session } from 'next-auth';
 /**
  * Server Action用于从服务器端执行PubMed搜索
  * 避免客户端直接调用外部API时遇到的CORS问题
+ *
+ * PubMed 是纯英文文献数据库，中文等非 ASCII 关键词直接检索命中为 0。
+ * 因此检测到非 ASCII 查询时，先用用户配置的 LLM 翻译成英文医学检索词，
+ * 再执行检索；翻译失败或未配置 LLM 时回退为原始查询（保持原有行为）。
  */
-export async function searchPubMedAction(
+export const searchPubMedAction = withAuth(async (
+    session: Session,
     query: string,
     resultsPerPage: number = 10,
     page: number = 1
-): Promise<{ success: boolean; data?: PubMedSearchResult; error?: string }> {
+): Promise<{ success: boolean; data?: PubMedSearchResult; error?: string }> => {
     if (!query.trim()) {
         return {
             success: false,
@@ -21,14 +26,43 @@ export async function searchPubMedAction(
         };
     }
 
+    let searchQuery = query;
+    let translatedQuery: string | undefined;
+
+    // 含非 ASCII 字符（中文/日文等）时尝试 LLM 翻译
+    const hasNonAscii = /[^\x00-\x7F]/.test(query);
+    if (hasNonAscii) {
+        try {
+            const provider = await createProviderFromUserConfig(session.user.id);
+            const response = await provider.chat({
+                dialogId: 'pubmed_query_translation',
+                input: `Translate the following medical search query into ONE concise English search phrase suitable for the PubMed database (English medical literature). Use standard medical terminology (e.g. MeSH terms). Return ONLY the translated search phrase on a single line, with no quotes, no explanation and no numbering.\nQuery: ${query}`,
+            });
+
+            const translated = (response.content || '')
+                .split('\n')
+                .map((line: string) => line.trim().replace(/^["'`]+|["'`]+$/g, ''))
+                .filter((line: string) => line.length > 0 && /[a-zA-Z]/.test(line))[0];
+
+            if (translated) {
+                searchQuery = translated;
+                translatedQuery = translated;
+                console.log(`[Server Action] PubMed 查询翻译: "${query}" -> "${translated}"`);
+            }
+        } catch (error) {
+            // 翻译失败不阻塞搜索，回退为原始查询
+            console.warn(`[Server Action] 翻译 PubMed 查询失败，使用原始查询:`, error);
+        }
+    }
+
     try {
-        console.log(`[Server Action] 执行PubMed搜索: "${query}", 页码: ${page}, 每页结果: ${resultsPerPage}`);
-        const result = await searchPubMed(query, resultsPerPage, page);
+        console.log(`[Server Action] 执行PubMed搜索: "${searchQuery}", 页码: ${page}, 每页结果: ${resultsPerPage}`);
+        const result = await searchPubMed(searchQuery, resultsPerPage, page);
 
         console.log(`[Server Action] 搜索成功, 找到${result.count}条结果, 返回${result.articles.length}条`);
         return {
             success: true,
-            data: result
+            data: { ...result, translatedQuery }
         };
     } catch (error: any) {
         console.error(`[Server Action] PubMed搜索失败:`, error);
@@ -37,7 +71,7 @@ export async function searchPubMedAction(
             error: error.message || '搜索PubMed文章失败'
         };
     }
-}
+});
 
 /**
  * 获取 PubMed 搜索建议
