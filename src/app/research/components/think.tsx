@@ -131,6 +131,10 @@ export default function ThinkStatusDisplay({ taskId }: ThinkStatusDisplayProps) 
     const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
     const scrollAreaRef = useRef<HTMLDivElement>(null);
 
+    // 任务已结束（收到 complete/error）的标记：阻止 EventSource 自动重连后
+    // 把 isConnected 置回 true，导致页面永远显示"正在深度思考中"
+    const taskDoneRef = useRef(false);
+
     // 使用一个 useRef 对象来存储所有需要跨渲染周期保持的状态
     const sseStateRef = useRef<{
         eventSource: EventSource | null;
@@ -150,6 +154,8 @@ export default function ThinkStatusDisplay({ taskId }: ThinkStatusDisplayProps) 
             console.log(`ThinkStatusDisplay: TaskId changed from ${sseStateRef.current.taskId} to ${taskId}, resetting state`);
             sseStateRef.current.taskId = taskId;
             sseStateRef.current.isCreated = false;
+            // 新任务：清除上一任务的结束标记
+            taskDoneRef.current = false;
 
             // 如果存在旧的连接，关闭它
             if (sseStateRef.current.eventSource) {
@@ -201,6 +207,12 @@ export default function ThinkStatusDisplay({ taskId }: ThinkStatusDisplayProps) 
 
         eventSource.onopen = () => {
             console.log(`ThinkStatusDisplay: SSE connection opened successfully for taskId: ${taskId}`);
+            // 任务已结束却发生自动重连时，直接关闭，不再恢复"思考中"状态
+            if (taskDoneRef.current) {
+                console.log(`ThinkStatusDisplay: Task already done, closing reconnected SSE for taskId: ${taskId}`);
+                eventSource.close();
+                return;
+            }
             setIsConnected(true);
             setError(null);
             clearTimeout(connectionTimeout);
@@ -359,9 +371,16 @@ export default function ThinkStatusDisplay({ taskId }: ThinkStatusDisplayProps) 
                     console.error("ThinkStatusDisplay: Received error message from server:", data.error);
                     setError(`${t('taskError')}: ${data.error}`);
                     setIsConnected(false);
+                    // 任务失败：置结束标记并关闭连接，防止自动重连把页面带回"思考中"
+                    taskDoneRef.current = true;
+                    try { eventSource.close(); } catch (closeErr) { console.warn('Error closing EventSource:', closeErr); }
                 } else if (data.complete) {
                     console.log("ThinkStatusDisplay: Received completion message from server:", data.complete);
                     setIsConnected(false);
+                    // 任务完成：置结束标记并显式关闭连接（否则浏览器 EventSource 会自动重连，
+                    // onopen 再次触发 setIsConnected(true)，页面永远显示"正在深度思考中"）
+                    taskDoneRef.current = true;
+                    try { eventSource.close(); } catch (closeErr) { console.warn('Error closing EventSource:', closeErr); }
                 } else if (data.result) {
                     console.log("ThinkStatusDisplay: Received result data via onmessage:", data.result);
                     if (typeof data.result === 'object' && data.result !== null && data.result.action) {

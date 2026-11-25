@@ -1,7 +1,7 @@
 // src/app/api/research/stream/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createNewRedisClient } from '@/lib/redis-client';
-import { getTokenTrackerState, getActionTrackerState, TrackerEvent } from '@/lib/deep-research/tracker-store'; // 导入 TrackerEvent
+import { getTokenTrackerState, getActionTrackerState, getCompletedResult, TrackerEvent } from '@/lib/deep-research/tracker-store'; // 导入 TrackerEvent
 import type { Redis } from 'ioredis';
 import { TokenUsage } from '@/lib/deep-research/types';
 import { ActionState } from '@/lib/deep-research/utils/action-tracker';
@@ -29,6 +29,22 @@ export async function GET(req: NextRequest) {
     const stream = new ReadableStream({
         async start(controller) {
             console.log(`[SSE ${taskId}] Attempting to create Redis subscriber...`);
+
+            // 任务已完成的场景（客户端断线重连/页面刷新）：立即回放 result + complete 并结束，
+            // 否则 pub/sub 事件早已消费完毕，前端会永远停留在"正在深度思考中"。
+            try {
+                const completed = await getCompletedResult(taskId) as { completed?: boolean; result?: unknown } | null;
+                if (completed && completed.completed) {
+                    console.log(`[SSE ${taskId}] Task already completed, replaying result and complete events.`);
+                    controller.enqueue(new TextEncoder().encode(`event: result\ndata: ${JSON.stringify(completed.result)}\n\n`));
+                    controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ complete: '研究完成' })}\n\n`));
+                    controller.close();
+                    return;
+                }
+            } catch (replayError) {
+                console.error(`[SSE ${taskId}] Error replaying completed result:`, replayError);
+                // 回放失败时继续走正常订阅流程
+            }
 
             try {
                 // 订阅 Redis 通道

@@ -255,4 +255,45 @@ export async function getActionTrackerState(taskId: string): Promise<ActionState
         console.error(`[TrackerStore] Error retrieving ActionTracker state for task ${taskId}:`, error);
         return null;
     }
+}
+
+const COMPLETED_RESULT_PREFIX = 'tracker:completed:';
+
+/**
+ * 任务成功完成后，把最终结果存入 Redis（带 TTL）。
+ * 用途：SSE 客户端断线重连时，可据此立即回放 result + complete 事件，
+ * 避免前端因错过 pub/sub 事件而永远停留在"正在深度思考中"。
+ */
+export async function markTaskCompleted(taskId: string, result: unknown): Promise<void> {
+    const redis = getRedisClient();
+    const key = `${COMPLETED_RESULT_PREFIX}${taskId}`;
+    try {
+        // 用 { completed, result } 包装，区分"任务未完成"与"完成但结果为空"
+        const resultString = JSON.stringify({ completed: true, result: result ?? null });
+        await redis.set(key, resultString, 'EX', DEFAULT_TASK_TTL_SECONDS);
+        console.log(`[TrackerStore] Marked task ${taskId} as completed`);
+    } catch (error) {
+        console.error(`[TrackerStore] Error marking task ${taskId} as completed:`, error);
+    }
+}
+
+/**
+ * 获取已完成任务的最终结果；任务未完成或已过期时返回 null。
+ */
+export async function getCompletedResult(taskId: string): Promise<unknown | null> {
+    const redis = getRedisClient();
+    const key = `${COMPLETED_RESULT_PREFIX}${taskId}`;
+    try {
+        const resultString = await redis.get(key);
+        if (resultString) {
+            const wrapped = JSON.parse(resultString);
+            console.log(`[TrackerStore] Retrieved completed result for task ${taskId}`);
+            return wrapped;
+        }
+        console.log(`[TrackerStore] No completed result found for task ${taskId}`);
+        return null;
+    } catch (error) {
+        console.error(`[TrackerStore] Error retrieving completed result for task ${taskId}:`, error);
+        return null;
+    }
 } 

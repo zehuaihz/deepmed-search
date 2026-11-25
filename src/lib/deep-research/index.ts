@@ -1,7 +1,7 @@
 import { CoreMessage } from 'ai';
 import { ResearchAgent, ResearchAgentOptions } from './agent'; // Assuming ResearchAgent is exported from agent.ts
 import { StepAction, TrackerContext } from './types'; // Assuming types are in types.ts 
-import { publishThink, publishComplete, publishResult } from './tracker-store';
+import { publishThink, publishComplete, publishResult, markTaskCompleted } from './tracker-store';
 import { userContextStorage, UserResearchContext } from './user-context';
 
 export async function processResearchTask(
@@ -137,6 +137,9 @@ export async function processResearchTask(
 
         // 发布研究结果
         await publishResult(taskId, result);
+
+        // 持久化完成标记，供 SSE 断线重连时回放（避免前端错过事件卡在"思考中"）
+        await markTaskCompleted(taskId, result);
 
         // 发布完成消息
         await publishComplete(taskId, `研究完成: ${question}`);
