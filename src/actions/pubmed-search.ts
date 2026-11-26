@@ -42,7 +42,7 @@ export const searchPubMedAction = withAuth(async (
             const translated = (response.content || '')
                 .split('\n')
                 .map((line: string) => line.trim().replace(/^["'`]+|["'`]+$/g, ''))
-                .filter((line: string) => line.length > 0 && /[a-zA-Z]/.test(line))[0];
+                .find((line: string) => line.length > 0 && /[a-zA-Z]/.test(line));
 
             if (translated) {
                 searchQuery = translated;

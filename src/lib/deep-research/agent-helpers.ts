@@ -184,14 +184,37 @@ export async function determineNextActionHelper(thisAgent: ResearchAgent, curren
             return null;
         }
 
-        const actionPayload = result.object[actionType] || {};
+        // 模型偶尔把长文本（尤其 answer）输出成 {"0":"a","1":"b",...} 字符索引对象。
+        // 若在此处不重建，展开后 answer 字段会消失（变成一堆数字键），
+        // 下游 mdAnswer/references/前端展示全部拿不到正文。
+        const rawPayload = result.object[actionType];
+        let actionPayload: Record<string, unknown> =
+            rawPayload && typeof rawPayload === 'object' && !Array.isArray(rawPayload)
+                ? rawPayload as Record<string, unknown>
+                : {};
+        if (actionType === 'answer') {
+            const repairedPayload = repairIndexedString(actionPayload);
+            if (typeof repairedPayload === 'string') {
+                console.log(`[Generator] answer payload 为字符索引对象形态，已重建为字符串，长度: ${repairedPayload.length}`);
+                actionPayload = { answer: repairedPayload };
+            }
+        }
+
+        const repairedThink = repairIndexedString(result.object.think);
+
         const stepAction = {
             action: actionType,
-            think: result.object.think || '',
+            think: typeof repairedThink === 'string' ? repairedThink : '',
             ...actionPayload
         } as StepAction;
 
-        console.log("Generated action:", stepAction);
+        // 摘要化：整篇答案可达数千键，直接打印会刷屏并拖慢日志 IO
+        console.log('[Generator] Generated action:', {
+            action: stepAction.action,
+            think: typeof stepAction.think === 'string' ? `${stepAction.think.substring(0, 100)}...` : stepAction.think,
+            answerLength: typeof (stepAction as any).answer === 'string' ? (stepAction as any).answer.length : undefined,
+            keys: Object.keys(stepAction),
+        });
         return stepAction;
     } catch (error) {
         console.error("Error generating next action:", error);
@@ -322,6 +345,15 @@ export async function generateFinalAnswerHelper(thisAgent: ResearchAgent, option
 // Updated signature to accept ResearchAgent instance (or necessary properties)
 export async function processFinalAnswerHelper(thisAgent: ResearchAgent, answerAction: AnswerAction): Promise<void> {
     console.log('Processing Final Answer (Helper)');
+    // 收口点：无论 answerAction 从主循环还是 generateFinalAnswerHelper 来，
+    // 都在这里把字符索引对象形态的 answer 重建为字符串，保证 mdAnswer 能正常生成。
+    {
+        const repaired = repairIndexedString(answerAction.answer);
+        if (typeof repaired === 'string' && repaired !== answerAction.answer) {
+            answerAction.answer = repaired;
+            console.log('[Helper] answer 为字符索引对象形态，已重建为字符串，长度:', repaired.length);
+        }
+    }
     const trivialQuestion = (thisAgent as any).trivialQuestion as boolean;
     const allKnowledge = (thisAgent as any).allKnowledge as KnowledgeItem[];
     const context = (thisAgent as any).context as TrackerContext;
@@ -391,7 +423,14 @@ export async function processFinalAnswerHelper(thisAgent: ResearchAgent, answerA
             answerAction.mdAnswer = answerAction.answer;
         }
     }
-    console.log("Final Processed Answer (Helper):", answerAction)
+    // 摘要化：answer/mdAnswer 可达数百 KB，直接打印整个对象会刷屏
+    console.log('[Helper] Final Processed Answer summary:', {
+        action: answerAction.action,
+        answerLength: typeof answerAction.answer === 'string' ? answerAction.answer.length : typeof answerAction.answer,
+        mdAnswerLength: typeof answerAction.mdAnswer === 'string' ? answerAction.mdAnswer.length : typeof answerAction.mdAnswer,
+        referenceCount: Array.isArray(answerAction.references) ? answerAction.references.length : undefined,
+        isFinal: answerAction.isFinal,
+    })
 }
 
 // Updated signature to accept ResearchAgent instance (or necessary properties)

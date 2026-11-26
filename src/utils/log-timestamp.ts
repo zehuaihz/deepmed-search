@@ -36,7 +36,6 @@ export function patchConsoleTimestamp(): void {
 
     for (const method of methods) {
         const original = console[method].bind(console);
-        // eslint-disable-next-line no-console
         (console as unknown as Record<string, (...args: unknown[]) => void>)[method] = (
             ...args: unknown[]
         ) => {

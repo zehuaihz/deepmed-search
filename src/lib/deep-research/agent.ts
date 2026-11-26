@@ -245,8 +245,10 @@ export class ResearchAgent {
             if (this.thisStep) {
                 const step = this.thisStep as any;
                 for (const field of ['answer', 'result'] as const) {
-                    if (step[field] === undefined) continue;
-                    const repaired = repairIndexedString(step[field]);
+                    const raw = step[field];
+                    // 只处理真正的索引对象；已是字符串时不要重复赋值和打印
+                    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) continue;
+                    const repaired = repairIndexedString(raw);
                     if (typeof repaired === 'string') {
                         if (field === 'result') {
                             // 模型偶尔把 answer 内容输出到 result 字段：归一到 answer

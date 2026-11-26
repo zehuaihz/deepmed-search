@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
                                     break;
                                 case 'result':
                                     originalEventData = `event: result\ndata: ${event.payload}\n\n`;
-                                    console.log(`[SSE ${taskId}] Sending result event:`, event.payload);
+                                    console.log(`[SSE ${taskId}] Sending result event (${String(event.payload).length} chars)`);
                                     break;
                                 case 'questionEvaluation':
                                     originalEventData = `event: questionEvaluation\ndata: ${event.payload}\n\n`;

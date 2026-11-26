@@ -430,9 +430,12 @@ export default function ThinkStatusDisplay({ taskId }: ThinkStatusDisplayProps) 
                 const data = JSON.parse(event.data);
                 console.log("ThinkStatusDisplay: Received result event data:", data);
                 if (data && typeof data === 'object') {
-                    // 保存完整 payload：mdAnswer（富文本）与 result/answer（正文）都在顶层，
-                    // 渲染层按 mdAnswer → 重建 answer → 原始字符串 的优先级展示
-                    setResearchResult(data);
+                    // 服务端 payload 形如 { result: <answerAction>, context, visitedURLs, ... }，
+                    // 答案对象在 data.result 里（含 answer / mdAnswer / references）。
+                    const answerPayload = (data.result && typeof data.result === 'object')
+                        ? data.result
+                        : data;
+                    setResearchResult(answerPayload);
                 } else {
                     console.warn("ThinkStatusDisplay: Received result event data in unexpected format:", data);
                 }
@@ -523,7 +526,10 @@ export default function ThinkStatusDisplay({ taskId }: ThinkStatusDisplayProps) 
             );
         }
 
-        if (!isConnected && !error) {
+        // 仅在"还没有任何进展"时展示连接中动画。
+        // 任务完成时 complete 事件会把 isConnected 置为 false，若不排除已有结果，
+        // 页面会永远停留在"正在连接思考过程流..."（结果明明已经到了）。
+        if (!isConnected && !error && !researchResult && thoughts.length === 0 && !questionEvaluation) {
             return (
                 <div className="w-full mb-6 p-8">
                     <div className="flex flex-col items-center space-y-6">
